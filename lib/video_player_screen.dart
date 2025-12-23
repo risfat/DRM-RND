@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:safe_device/safe_device.dart';
 import 'package:screen_protector/screen_protector.dart';
 import 'package:video_player/video_player.dart';
@@ -18,6 +20,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   late VideoPlayerController _videoPlayerController;
   ChewieController? _chewieController;
   int _currentVideoIndex = 0;
+  bool _isSafeStatus = true;
 
   final List<Map<String, String>> _videos = [
     {
@@ -66,27 +69,37 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkDeviceSafety();
-    _initializeScreenProtection();
-    _initializePlayer();
+    _runInitializationSequence();
   }
 
-  Future<void> _checkDeviceSafety() async {
+  Future<void> _runInitializationSequence() async {
+    bool isSafe = await _checkDeviceSafety();
+    setState(() {
+      _isSafeStatus = isSafe;
+    });
+    if (isSafe) {
+      await _initializeScreenProtection();
+      await _initializePlayer();
+    }
+  }
+
+  Future<bool> _checkDeviceSafety() async {
     // 1. Check for Jailbreak/Root
     bool isJailBroken = await SafeDevice.isJailBroken;
     // 2. (Optional) Check if it's a physical device for stricter DRM
     bool isRealDevice = await SafeDevice.isRealDevice;
 
-    if (isJailBroken) {
-      if (!mounted) return;
-      _showUnsafeDeviceDialog(
-        "This device appears to be Jailbroken or Rooted. Content playback is disabled for security reasons.",
-      );
-    } else if (!isRealDevice) {
-      _showUnsafeDeviceDialog(
-        "This device appears to be an Emulator. Content playback is disabled for security reasons.",
-      );
+    if (isJailBroken || !isRealDevice) {
+      if (!mounted) return false;
+
+      String message = isJailBroken
+          ? "This device appears to be Jailbroken or Rooted. Content playback is disabled for security reasons."
+          : "This device appears to be an Emulator. Content playback is disabled for security reasons.";
+
+      _showUnsafeDeviceDialog(message);
+      return false;
     }
+    return true;
   }
 
   void _showUnsafeDeviceDialog(String message) {
@@ -95,12 +108,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       barrierDismissible: false,
       builder: (_) => WillPopScope(
         onWillPop: () async => false, // Disable back button
-        child: AlertDialog(
-          title: const Text("Security Violation"),
-          content: Text(message),
-          actions: [
-            // No actions, force user to exit or uninstall hacks
-          ],
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            title: const Text("Security Violation"),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  SystemNavigator.pop(); // Close the app
+                },
+                child: const Text(
+                  "Exit App",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -196,6 +220,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _playVideo(int index) {
+    if (!_isSafeStatus) return;
     if (_currentVideoIndex == index) return;
 
     setState(() {
@@ -250,13 +275,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             child: Container(
               color: Colors.black,
               child:
-                  _chewieController != null &&
+                  _isSafeStatus &&
+                      _chewieController != null &&
                       _chewieController!
                           .videoPlayerController
                           .value
                           .isInitialized
                   ? Chewie(controller: _chewieController!)
-                  : const Center(child: CircularProgressIndicator()),
+                  : Center(
+                      child: _isSafeStatus
+                          ? const CircularProgressIndicator()
+                          : const Icon(Icons.lock, color: Colors.red, size: 48),
+                    ),
             ),
           ),
 
@@ -344,7 +374,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                                 ),
                                 margin: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.8),
+                                  color: Colors.black.withValues(alpha: 0.8),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -458,7 +488,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: Colors.white12),
                   ),
