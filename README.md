@@ -45,7 +45,6 @@ Currently, this project focuses on **UI/System level protection**. For productio
 
 1.  **Network Sniffing**: The current project uses direct MP4 links. In a production environment, use **Widevine (Android)** and **FairPlay (iOS)** encryption to prevent network-level stealing.
 2.  **Analog Hole**: While watermarking identifies the leaker, it cannot physically prevent someone from filming the screen with another device.
-3.  **App Cloning**: Rooted/Jailbroken devices can sometimes bypass window flags. Production apps should include Root/Jailbreak detection.
 
 ---
 **Developed by AIT RND Team**
