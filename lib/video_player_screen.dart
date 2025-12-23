@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'package:chewie/chewie.dart';
@@ -116,7 +117,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             actions: [
               TextButton(
                 onPressed: () {
-                  SystemNavigator.pop(); // Close the app
+                  if (Platform.isIOS) {
+                    exit(0); // Force exit on iOS
+                  } else {
+                    SystemNavigator.pop(); // Standard exit on Android
+                  }
                 },
                 child: const Text(
                   "Exit App",
