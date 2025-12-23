@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
+import 'package:safe_device/safe_device.dart';
 import 'package:screen_protector/screen_protector.dart';
 import 'package:video_player/video_player.dart';
 
@@ -65,8 +66,44 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _checkDeviceSafety();
     _initializeScreenProtection();
     _initializePlayer();
+  }
+
+  Future<void> _checkDeviceSafety() async {
+    // 1. Check for Jailbreak/Root
+    bool isJailBroken = await SafeDevice.isJailBroken;
+    // 2. (Optional) Check if it's a physical device for stricter DRM
+    bool isRealDevice = await SafeDevice.isRealDevice;
+
+    if (isJailBroken) {
+      if (!mounted) return;
+      _showUnsafeDeviceDialog(
+        "This device appears to be Jailbroken or Rooted. Content playback is disabled for security reasons.",
+      );
+    } else if (!isRealDevice) {
+      _showUnsafeDeviceDialog(
+        "This device appears to be an Emulator. Content playback is disabled for security reasons.",
+      );
+    }
+  }
+
+  void _showUnsafeDeviceDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false, // Disable back button
+        child: AlertDialog(
+          title: const Text("Security Violation"),
+          content: Text(message),
+          actions: [
+            // No actions, force user to exit or uninstall hacks
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _initializeScreenProtection() async {
@@ -242,7 +279,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       ),
                     ),
                     const Chip(
-                      label: Text("AES-128", style: TextStyle(fontSize: 10)),
+                      label: Text("AIT", style: TextStyle(fontSize: 10)),
                       backgroundColor: Colors.white10,
                       labelPadding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
