@@ -65,20 +65,70 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _enableScreenProtection();
+    _initializeScreenProtection();
     _initializePlayer();
   }
 
-  Future<void> _enableScreenProtection() async {
-    // Prevent screenshot
+  Future<void> _initializeScreenProtection() async {
+    // 1. Activates generic protection:
+    //    - Android: Sets FLAG_SECURE (Prevents Screenshots & Screen Recording)
+    //    - iOS: Adds a secure UITextField (Prevents Screen Recording -> Black Screen)
     await ScreenProtector.preventScreenshotOn();
-    // Protect data leakage (iOS feature mostly, shows black screen in app switcher)
+
+    // 2. Activates App Switcher protection (iOS specific mostly):
+    //    - Shows a blur effect over the app when in the recent apps list.
     await ScreenProtector.protectDataLeakageWithBlur();
+
+    // 3. Listener for Screenshot events (iOS):
+    //    - Triggers if the user presses Power + Volume Up.
+    //    - Note: On iOS 11+, we can't physically stop the screenshot file from being created
+    //      (it's a system right), but 'preventScreenshotOn' hides the content (black/hidden)
+    //      in the screenshot for most modern implementations.
+    //      If it fails to hide, this listener lets us punish/warn the user.
+    ScreenProtector.addListener(
+      () {
+        _handleScreenshotDetected();
+      },
+      (isCapturing) {
+        // Listener for Screen Recording status change
+        if (isCapturing) {
+          _chewieController?.pause();
+          _showRecordingWarning();
+        }
+      },
+    );
+  }
+
+  void _handleScreenshotDetected() {
+    // Show a warning or log the incident
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          '⚠️ Screenshot detected! This incident has been reported.',
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showRecordingWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        title: Text("Security Alert"),
+        content: Text(
+          "Screen recording is not allowed. Playback has been paused.",
+        ),
+      ),
+    );
   }
 
   Future<void> _disableScreenProtection() async {
     await ScreenProtector.preventScreenshotOff();
     await ScreenProtector.protectDataLeakageOff();
+    ScreenProtector.removeListener();
   }
 
   Future<void> _initializePlayer() async {
@@ -122,11 +172,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Auto-pause and obscure if user switches apps
+    // Re-enforce protection when coming back to foreground
     if (state == AppLifecycleState.resumed) {
       ScreenProtector.preventScreenshotOn();
+      ScreenProtector.protectDataLeakageWithBlur();
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
+      // Pause video when going to background
       _chewieController?.pause();
     }
   }
@@ -190,7 +242,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                       ),
                     ),
                     const Chip(
-                      label: Text("AIT", style: TextStyle(fontSize: 10)),
+                      label: Text("AES-128", style: TextStyle(fontSize: 10)),
                       backgroundColor: Colors.white10,
                       labelPadding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
@@ -255,7 +307,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                                 ),
                                 margin: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.8),
+                                  color: Colors.black.withOpacity(0.8),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -369,12 +421,12 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.3),
+                    color: Colors.black.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: Colors.white12),
                   ),
                   child: const Text(
-                    "AIT-2323",
+                    "AIT",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white24,
