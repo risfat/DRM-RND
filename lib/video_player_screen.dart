@@ -74,6 +74,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Future<void> _runInitializationSequence() async {
+    // Lock app to portrait initially
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
     bool isSafe = await _checkDeviceSafety();
     setState(() {
       _isSafeStatus = isSafe;
@@ -210,6 +213,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       aspectRatio: 16 / 9,
       allowPlaybackSpeedChanging: false,
       allowFullScreen: true,
+      deviceOrientationsOnEnterFullScreen: [
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ],
+      deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
       // The overlay persists in fullscreen mode
       overlay: const WatermarkOverlay(),
       errorBuilder: (context, errorMessage) {
@@ -252,6 +260,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     WidgetsBinding.instance.removeObserver(this);
     _disableScreenProtection();
     _videoPlayerController.dispose();
