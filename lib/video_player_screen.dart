@@ -255,7 +255,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                                 ),
                                 margin: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.8),
+                                  color: Colors.black.withValues(alpha: 0.8),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -369,7 +369,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: Colors.white12),
                   ),
