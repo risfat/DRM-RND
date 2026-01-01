@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:safe_device/safe_device.dart';
 import 'package:screen_protector/screen_protector.dart';
 import 'package:better_player_plus/better_player_plus.dart';
+import 'package:vdocipher_flutter/vdocipher_flutter.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   const VideoPlayerScreen({super.key});
@@ -15,47 +18,76 @@ class VideoPlayerScreen extends StatefulWidget {
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
+class _VdoCipherAuth {
+  final String otp;
+  final String playbackInfo;
+
+  const _VdoCipherAuth({required this.otp, required this.playbackInfo});
+}
+
 class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     with WidgetsBindingObserver {
   BetterPlayerController? _betterPlayerController;
+  VdoPlayerController? _vdoPlayerController;
+  EmbedInfo? _vdoEmbedInfo;
+  bool _isVdoLoading = false;
+  String? _vdoErrorMessage;
   int _currentVideoIndex = 0;
   bool _isSafeStatus = true;
 
+  static const String _vdoCipherOtpEndpoint = String.fromEnvironment(
+    'VDOCIPHER_OTP_ENDPOINT',
+    defaultValue: 'https://drm-backend-psi.vercel.app/vdocipher/otp',
+  );
+
   final List<Map<String, String>> _videos = [
     {
-      'title': 'Big Buck Bunny',
-      'url': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      'title': 'DRM Video 1',
+      'source': 'vdocipher',
+      'videoId': 'c5d0d27026fa79a49c1c94655e587f8a',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
-      'duration': '9:56',
+      'duration': 'DRM',
     },
     {
-      'title': 'Elephant Dream',
-      'url': 'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
+      'title': 'DRM Video 2',
+      'source': 'vdocipher',
+      'videoId': 'YOUR_VDOCIPHER_VIDEO_ID_2',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
-      'duration': '10:53',
+      'duration': 'DRM',
     },
     {
-      'title': 'For Bigger Blazes',
-      'url': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      'title': 'DRM Video 3',
+      'source': 'vdocipher',
+      'videoId': 'YOUR_VDOCIPHER_VIDEO_ID_3',
+      'thumbnail':
+          'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
+      'duration': 'DRM',
+    },
+    {
+      'title': 'DRM Video 4',
+      'source': 'vdocipher',
+      'videoId': 'YOUR_VDOCIPHER_VIDEO_ID_4',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
-      'duration': '0:15',
+      'duration': 'DRM',
     },
     {
-      'title': 'For Bigger Escapes',
-      'url': 'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
+      'title': 'DRM Video 5',
+      'source': 'vdocipher',
+      'videoId': 'YOUR_VDOCIPHER_VIDEO_ID_5',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
-      'duration': '0:15',
+      'duration': 'DRM',
     },
     {
-      'title': 'For Bigger Fun',
-      'url': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      'title': 'DRM Video 6',
+      'source': 'vdocipher',
+      'videoId': 'YOUR_VDOCIPHER_VIDEO_ID_6',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg',
-      'duration': '1:00',
+      'duration': 'DRM',
     },
   ];
 
@@ -78,6 +110,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _initializeScreenProtection();
       await _initializePlayer();
     }
+  }
+
+  bool _isVdoCipherVideo(Map<String, String> video) {
+    return video['source'] == 'vdocipher';
   }
 
   Future<bool> _checkDeviceSafety() async {
@@ -152,6 +188,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         // Listener for Screen Recording status change
         if (isCapturing) {
           _betterPlayerController?.pause();
+          _vdoPlayerController?.pause();
           _showRecordingWarning();
         }
       },
@@ -191,60 +228,113 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Future<void> _initializePlayer() async {
-    final betterPlayerConfiguration = BetterPlayerConfiguration(
-      autoPlay: true,
-      looping: false,
-      aspectRatio: 16 / 9,
-      fit: BoxFit.contain,
-      controlsConfiguration: BetterPlayerControlsConfiguration(
-        enableProgressBar: true,
-        enableSkips: true,
-        enableOverflowMenu: true,
-        enablePlayPause: true,
-        enableMute: true,
-        enableFullscreen: true,
-        enableProgressText: true,
-        enableQualities: true,
-        enableSubtitles: true,
-        controlBarColor: Colors.black54,
-        progressBarPlayedColor: Colors.red,
-        progressBarHandleColor: Colors.red,
-        progressBarBufferedColor: Colors.white24,
-        progressBarBackgroundColor: Colors.white12,
-      ),
-      expandToFill: false,
-      autoDetectFullscreenDeviceOrientation: true,
-      autoDetectFullscreenAspectRatio: true,
-      deviceOrientationsOnFullScreen: [
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ],
-      placeholder: const WatermarkOverlay(),
-      errorBuilder: (context, errorMessage) {
-        return Center(
-          child: Text(
-            errorMessage ?? 'Error loading video',
-            style: const TextStyle(color: Colors.white),
-          ),
-        );
+    final video = _videos[_currentVideoIndex];
+    if (!_isVdoCipherVideo(video)) {
+      if (!mounted) return;
+      setState(() {
+        _vdoEmbedInfo = null;
+        _isVdoLoading = false;
+        _vdoErrorMessage =
+            'All videos must be DRM-protected. Configure this item with a VdoCipher videoId.';
+      });
+      return;
+    }
+
+    await _initializeVdoCipherPlayer(video);
+  }
+
+  Future<void> _initializeVdoCipherPlayer(Map<String, String> video) async {
+    _betterPlayerController?.dispose();
+    _betterPlayerController = null;
+
+    if (!Platform.isAndroid) {
+      if (!mounted) return;
+      setState(() {
+        _vdoEmbedInfo = null;
+        _isVdoLoading = false;
+        _vdoErrorMessage =
+            'VdoCipher Widevine DRM playback is Android-only in this MVP.';
+      });
+      return;
+    }
+
+    final videoId = video['videoId'];
+    if (videoId == null ||
+        videoId.isEmpty ||
+        videoId.startsWith('YOUR_VDOCIPHER_VIDEO_ID')) {
+      if (!mounted) return;
+      setState(() {
+        _vdoEmbedInfo = null;
+        _isVdoLoading = false;
+        _vdoErrorMessage =
+            'Set a valid VdoCipher videoId in the playlist item.';
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isVdoLoading = true;
+      _vdoErrorMessage = null;
+      _vdoEmbedInfo = null;
+    });
+
+    try {
+      final auth = await _fetchVdoCipherOtp(videoId: videoId, ttlSeconds: 300);
+      final embedInfo = EmbedInfo.streaming(
+        otp: auth.otp,
+        playbackInfo: auth.playbackInfo,
+        embedInfoOptions: const EmbedInfoOptions(autoplay: true),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _vdoEmbedInfo = embedInfo;
+        _isVdoLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isVdoLoading = false;
+        _vdoErrorMessage = e.toString();
+      });
+    }
+  }
+
+  Future<_VdoCipherAuth> _fetchVdoCipherOtp({
+    required String videoId,
+    required int ttlSeconds,
+  }) async {
+    final uri = Uri.parse(_vdoCipherOtpEndpoint);
+    final response = await http.post(
+      uri,
+      headers: const {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
+      body: jsonEncode({'videoId': videoId, 'ttl': ttlSeconds}),
     );
 
-    _betterPlayerController = BetterPlayerController(betterPlayerConfiguration);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'OTP endpoint error: ${response.statusCode} ${response.body}',
+      );
+    }
 
-    final betterPlayerDataSource = BetterPlayerDataSource(
-      BetterPlayerDataSourceType.network,
-      _videos[_currentVideoIndex]['url']!,
-      notificationConfiguration: BetterPlayerNotificationConfiguration(
-        showNotification: false,
-        title: _videos[_currentVideoIndex]['title'] ?? '',
-        author: 'Secure Player',
-        imageUrl: _videos[_currentVideoIndex]['thumbnail'] ?? '',
-      ),
-    );
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Invalid OTP response JSON');
+    }
 
-    await _betterPlayerController!.setupDataSource(betterPlayerDataSource);
-    if (mounted) setState(() {});
+    final otp = decoded['otp'];
+    final playbackInfo = decoded['playbackInfo'];
+    if (otp is! String || playbackInfo is! String) {
+      throw Exception(
+        'OTP response must include string fields: otp, playbackInfo',
+      );
+    }
+
+    return _VdoCipherAuth(otp: otp, playbackInfo: playbackInfo);
   }
 
   void _playVideo(int index) {
@@ -255,6 +345,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _currentVideoIndex = index;
       _betterPlayerController?.dispose();
       _betterPlayerController = null;
+      _vdoPlayerController?.dispose();
+      _vdoPlayerController = null;
+      _vdoEmbedInfo = null;
+      _isVdoLoading = false;
+      _vdoErrorMessage = null;
     });
     _initializePlayer();
   }
@@ -269,6 +364,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         state == AppLifecycleState.paused) {
       // Pause video when going to background
       _betterPlayerController?.pause();
+      _vdoPlayerController?.pause();
     }
   }
 
@@ -283,6 +379,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     WidgetsBinding.instance.removeObserver(this);
     _disableScreenProtection();
     _betterPlayerController?.dispose();
+    _vdoPlayerController?.dispose();
     super.dispose();
   }
 
@@ -306,15 +403,68 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             aspectRatio: 16 / 9,
             child: Container(
               color: Colors.black,
-              child:
-                  _isSafeStatus &&
-                      _betterPlayerController != null &&
-                      _betterPlayerController!.videoPlayerController != null
-                  ? BetterPlayer(controller: _betterPlayerController!)
-                  : Center(
-                      child: _isSafeStatus
-                          ? const CircularProgressIndicator()
-                          : const Icon(Icons.lock, color: Colors.red, size: 48),
+              child: _isSafeStatus
+                  ? _isVdoCipherVideo(_videos[_currentVideoIndex])
+                        ? (_isVdoLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : (_vdoErrorMessage != null
+                                    ? Center(
+                                        child: Text(
+                                          _vdoErrorMessage!,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      )
+                                    : (_vdoEmbedInfo != null
+                                          ? Stack(
+                                              children: [
+                                                Positioned.fill(
+                                                  child: VdoPlayer(
+                                                    embedInfo: _vdoEmbedInfo!,
+                                                    onPlayerCreated:
+                                                        (controller) {
+                                                          _vdoPlayerController =
+                                                              controller;
+                                                        },
+                                                    onFullscreenChange: (_) {},
+                                                    onError: (vdoError) {
+                                                      if (!mounted) return;
+                                                      setState(() {
+                                                        _vdoErrorMessage =
+                                                            vdoError.toString();
+                                                      });
+                                                    },
+                                                  ),
+                                                ),
+                                                const Positioned.fill(
+                                                  child: IgnorePointer(
+                                                    child: WatermarkOverlay(),
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : const Center(
+                                              child: Text(
+                                                'DRM video not initialized',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ))))
+                        : (_betterPlayerController != null &&
+                                  _betterPlayerController!
+                                          .videoPlayerController !=
+                                      null
+                              ? BetterPlayer(
+                                  controller: _betterPlayerController!,
+                                )
+                              : const Center(
+                                  child: CircularProgressIndicator(),
+                                ))
+                  : const Center(
+                      child: Icon(Icons.lock, color: Colors.red, size: 48),
                     ),
             ),
           ),
