@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
-import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:safe_device/safe_device.dart';
 import 'package:screen_protector/screen_protector.dart';
-import 'package:video_player/video_player.dart';
+import 'package:better_player_plus/better_player_plus.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   const VideoPlayerScreen({super.key});
@@ -18,48 +17,42 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     with WidgetsBindingObserver {
-  late VideoPlayerController _videoPlayerController;
-  ChewieController? _chewieController;
+  BetterPlayerController? _betterPlayerController;
   int _currentVideoIndex = 0;
   bool _isSafeStatus = true;
 
   final List<Map<String, String>> _videos = [
     {
       'title': 'Big Buck Bunny',
-      'url':
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      'url': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg',
       'duration': '9:56',
     },
     {
       'title': 'Elephant Dream',
-      'url':
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      'url': 'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ElephantsDream.jpg',
       'duration': '10:53',
     },
     {
       'title': 'For Bigger Blazes',
-      'url':
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      'url': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg',
       'duration': '0:15',
     },
     {
       'title': 'For Bigger Escapes',
-      'url':
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      'url': 'https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
       'duration': '0:15',
     },
     {
       'title': 'For Bigger Fun',
-      'url':
-          'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+      'url': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
       'thumbnail':
           'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg',
       'duration': '1:00',
@@ -110,29 +103,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => WillPopScope(
-        onWillPop: () async => false, // Disable back button
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: AlertDialog(
-            title: const Text("Security Violation"),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  if (Platform.isIOS) {
-                    exit(0); // Force exit on iOS
-                  } else {
-                    SystemNavigator.pop(); // Standard exit on Android
-                  }
-                },
-                child: const Text(
-                  "Exit App",
-                  style: TextStyle(color: Colors.red),
-                ),
+      builder: (_) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: AlertDialog(
+          title: const Text("Security Violation"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (Platform.isIOS) {
+                  exit(0); // Force exit on iOS
+                } else {
+                  SystemNavigator.pop(); // Standard exit on Android
+                }
+              },
+              child: const Text(
+                "Exit App",
+                style: TextStyle(color: Colors.red),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -161,7 +151,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       (isCapturing) {
         // Listener for Screen Recording status change
         if (isCapturing) {
-          _chewieController?.pause();
+          _betterPlayerController?.pause();
           _showRecordingWarning();
         }
       },
@@ -201,34 +191,59 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   Future<void> _initializePlayer() async {
-    _videoPlayerController = VideoPlayerController.networkUrl(
-      Uri.parse(_videos[_currentVideoIndex]['url']!),
-    );
-    await _videoPlayerController.initialize();
-
-    _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController,
+    final betterPlayerConfiguration = BetterPlayerConfiguration(
       autoPlay: true,
       looping: false,
       aspectRatio: 16 / 9,
-      allowPlaybackSpeedChanging: false,
-      allowFullScreen: true,
-      deviceOrientationsOnEnterFullScreen: [
+      fit: BoxFit.contain,
+      controlsConfiguration: BetterPlayerControlsConfiguration(
+        enableProgressBar: true,
+        enableSkips: true,
+        enableOverflowMenu: true,
+        enablePlayPause: true,
+        enableMute: true,
+        enableFullscreen: true,
+        enableProgressText: true,
+        enableQualities: true,
+        enableSubtitles: true,
+        controlBarColor: Colors.black54,
+        progressBarPlayedColor: Colors.red,
+        progressBarHandleColor: Colors.red,
+        progressBarBufferedColor: Colors.white24,
+        progressBarBackgroundColor: Colors.white12,
+      ),
+      expandToFill: false,
+      autoDetectFullscreenDeviceOrientation: true,
+      autoDetectFullscreenAspectRatio: true,
+      deviceOrientationsOnFullScreen: [
         DeviceOrientation.landscapeLeft,
         DeviceOrientation.landscapeRight,
       ],
-      deviceOrientationsAfterFullScreen: [DeviceOrientation.portraitUp],
-      // The overlay persists in fullscreen mode
-      overlay: const WatermarkOverlay(),
+      placeholder: const WatermarkOverlay(),
       errorBuilder: (context, errorMessage) {
         return Center(
           child: Text(
-            errorMessage,
+            errorMessage ?? 'Error loading video',
             style: const TextStyle(color: Colors.white),
           ),
         );
       },
     );
+
+    _betterPlayerController = BetterPlayerController(betterPlayerConfiguration);
+
+    final betterPlayerDataSource = BetterPlayerDataSource(
+      BetterPlayerDataSourceType.network,
+      _videos[_currentVideoIndex]['url']!,
+      notificationConfiguration: BetterPlayerNotificationConfiguration(
+        showNotification: false,
+        title: _videos[_currentVideoIndex]['title'] ?? '',
+        author: 'Secure Player',
+        imageUrl: _videos[_currentVideoIndex]['thumbnail'] ?? '',
+      ),
+    );
+
+    await _betterPlayerController!.setupDataSource(betterPlayerDataSource);
     if (mounted) setState(() {});
   }
 
@@ -238,9 +253,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
     setState(() {
       _currentVideoIndex = index;
-      _chewieController?.dispose();
-      _videoPlayerController.dispose();
-      _chewieController = null;
+      _betterPlayerController?.dispose();
+      _betterPlayerController = null;
     });
     _initializePlayer();
   }
@@ -254,7 +268,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       // Pause video when going to background
-      _chewieController?.pause();
+      _betterPlayerController?.pause();
     }
   }
 
@@ -268,8 +282,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     ]);
     WidgetsBinding.instance.removeObserver(this);
     _disableScreenProtection();
-    _videoPlayerController.dispose();
-    _chewieController?.dispose();
+    _betterPlayerController?.dispose();
     super.dispose();
   }
 
@@ -295,12 +308,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               color: Colors.black,
               child:
                   _isSafeStatus &&
-                      _chewieController != null &&
-                      _chewieController!
-                          .videoPlayerController
-                          .value
-                          .isInitialized
-                  ? Chewie(controller: _chewieController!)
+                      _betterPlayerController != null &&
+                      _betterPlayerController!.videoPlayerController != null
+                  ? BetterPlayer(controller: _betterPlayerController!)
                   : Center(
                       child: _isSafeStatus
                           ? const CircularProgressIndicator()
