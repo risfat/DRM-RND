@@ -149,7 +149,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
       ScreenProtector.protectDataLeakageWithBlur();
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      _vdoPlayerController?.pause();
+      // _vdoPlayerController?.pause();
     }
   }
 
@@ -184,7 +184,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
       body: Column(
         children: [
           AspectRatio(
-            aspectRatio: 16 / 9,
+            aspectRatio: 16 / 11,
             child: Container(
               color: Colors.black,
               child: _isSafeStatus
@@ -238,7 +238,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                                 ),
                               ],
                             );
-                          default:
+                          case DrmPlayerState.idle:
                             return const Center(
                               child: Text(
                                 'Select a video to play',
@@ -254,7 +254,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12.0),
+            padding: const EdgeInsets.only(left: 12.0, right: 12, bottom: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
