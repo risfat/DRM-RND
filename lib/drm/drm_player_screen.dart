@@ -48,14 +48,25 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   }
 
   Future<void> _runInitializationSequence() async {
-    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    final isSafe = await _checkDeviceSafety();
-    setState(() {
-      _isSafeStatus = isSafe;
-    });
-    if (isSafe) {
-      await _initializeScreenProtection();
-      await _loadCurrentVideo();
+    try {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      final isSafe = await _checkDeviceSafety();
+      if (!mounted) return;
+      setState(() {
+        _isSafeStatus = isSafe;
+      });
+      if (isSafe) {
+        await _initializeScreenProtection();
+        await _loadCurrentVideo();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSafeStatus = false;
+      });
+      _showErrorDialog('Initialization failed: ${e.toString()}');
     }
   }
 
@@ -90,16 +101,21 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   }
 
   Future<void> _initializeScreenProtection() async {
-    await ScreenProtector.preventScreenshotOn();
-    await ScreenProtector.protectDataLeakageWithBlur();
-    ScreenProtector.addListener(() => _handleScreenshotDetected(), (
-      isCapturing,
-    ) {
-      if (isCapturing) {
-        _vdoPlayerController?.pause();
-        _showRecordingWarning();
-      }
-    });
+    try {
+      await ScreenProtector.preventScreenshotOn();
+      await ScreenProtector.protectDataLeakageWithBlur();
+      ScreenProtector.addListener(() => _handleScreenshotDetected(), (
+        isCapturing,
+      ) {
+        if (isCapturing) {
+          _vdoPlayerController?.pause();
+          _showRecordingWarning();
+        }
+      });
+    } catch (e) {
+      // Log error but don't fail the entire initialization
+      print('Screen protection initialization failed: $e');
+    }
   }
 
   void _handleScreenshotDetected() {
@@ -127,8 +143,14 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   }
 
   Future<void> _loadCurrentVideo() async {
-    final video = widget.videos[_currentVideoIndex];
-    await _provider.loadVideo(video);
+    try {
+      if (!mounted) return;
+      final video = widget.videos[_currentVideoIndex];
+      await _provider.loadVideo(video);
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorDialog('Failed to load video: ${e.toString()}');
+    }
   }
 
   void _playVideo(int index) {
@@ -205,7 +227,15 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                               ),
                             );
                           case DrmPlayerState.ready:
-                            final auth = _provider.auth!;
+                            final auth = _provider.auth;
+                            if (auth == null) {
+                              return const Center(
+                                child: Text(
+                                  'Authentication data missing',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              );
+                            }
                             return Stack(
                               children: [
                                 Positioned.fill(
@@ -218,7 +248,9 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                                       ),
                                     ),
                                     onPlayerCreated: (controller) {
-                                      _vdoPlayerController = controller;
+                                      if (mounted) {
+                                        _vdoPlayerController = controller;
+                                      }
                                     },
                                     onFullscreenChange: (_) {},
                                     onError: (vdoError) {
