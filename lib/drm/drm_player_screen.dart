@@ -121,7 +121,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   void _handleScreenshotDetected() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Screenshot detected! Playback paused.'),
+        content: Text('Screenshot detected!'),
         backgroundColor: Colors.red,
       ),
     );
@@ -130,7 +130,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   void _showRecordingWarning() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Screen recording detected! Playback paused.'),
+        content: Text('Screen recording detected!'),
         backgroundColor: Colors.orange,
       ),
     );
