@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:safe_device/safe_device.dart';
@@ -114,7 +113,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
       });
     } catch (e) {
       // Log error but don't fail the entire initialization
-      print('Screen protection initialization failed: $e');
+      debugPrint('Screen protection initialization failed: $e');
     }
   }
 
@@ -212,7 +211,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
               child: _isSafeStatus
                   ? ListenableBuilder(
                       listenable: _provider,
-                      builder: (_, __) {
+                      builder: (_, _) {
                         switch (_provider.state) {
                           case DrmPlayerState.loading:
                             return const Center(
