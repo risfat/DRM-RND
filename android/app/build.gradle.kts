@@ -36,9 +36,9 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
             
-            // Temporarily disable R8 shrinking to test if it's causing the crash
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Enable code shrinking for release builds
+            isMinifyEnabled = true
+            isShrinkResources = true
             
             // Add ProGuard rules
             proguardFiles(
