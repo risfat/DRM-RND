@@ -37,8 +37,8 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             
             // Enable code shrinking for release builds
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             
             // Add ProGuard rules
             proguardFiles(
