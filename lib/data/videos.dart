@@ -59,20 +59,20 @@ final videos = [
     drmType: DrmType.vdocipher,
     videoId: 'df4c818d44a04b53a226778f08afca47',
   ),
-  VideoItem(
-    title: 'For Bigger Escape',
-    thumbnailUrl:
-        'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
-    durationLabel: 'DRM',
-    drmType: DrmType.vdocipher,
-    videoId: 'YOUR_VDOCIPHER_VIDEO_ID_4',
-  ),
-  VideoItem(
-    title: 'Sintel',
-    thumbnailUrl:
-        'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
-    durationLabel: 'DRM',
-    drmType: DrmType.vdocipher,
-    videoId: 'YOUR_VDOCIPHER_VIDEO_ID_5',
-  ),
+  // VideoItem(
+  //   title: 'For Bigger Escape',
+  //   thumbnailUrl:
+  //       'https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg',
+  //   durationLabel: 'DRM',
+  //   drmType: DrmType.vdocipher,
+  //   videoId: 'YOUR_VDOCIPHER_VIDEO_ID_4',
+  // ),
+  // VideoItem(
+  //   title: 'Sintel',
+  //   thumbnailUrl:
+  //       'https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg',
+  //   durationLabel: 'DRM',
+  //   drmType: DrmType.vdocipher,
+  //   videoId: 'YOUR_VDOCIPHER_VIDEO_ID_5',
+  // ),
 ];
