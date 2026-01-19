@@ -243,6 +243,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                                       otp: auth.otp,
                                       playbackInfo: auth.playbackInfo,
                                       embedInfoOptions: const EmbedInfoOptions(
+                                        customPlayerId: "G6PJBZ1OIQypBmWt",
                                         autoplay: true,
                                       ),
                                     ),
