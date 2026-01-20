@@ -116,7 +116,12 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
           ),
 
           // Anti-Analog Hole Watermark Overlay
-          IgnorePointer(child: WatermarkOverlay(text: widget.userIdentifier)),
+          IgnorePointer(
+            child: WatermarkOverlay(
+              text: widget.userIdentifier,
+              textColor: Colors.white60,
+            ),
+          ),
 
           // Custom Overlay to block long-press or other interactions if necessary
           // (SfPdfViewer handles most, but we can add more layers here)

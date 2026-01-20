@@ -4,7 +4,14 @@ import 'package:flutter/material.dart';
 
 class WatermarkOverlay extends StatefulWidget {
   final String text;
-  const WatermarkOverlay({super.key, this.text = 'AIT DRM'});
+  final Color textColor;
+  final double overlayOpacity;
+  const WatermarkOverlay({
+    super.key,
+    this.text = 'AIT DRM',
+    this.textColor = Colors.white24,
+    this.overlayOpacity = 0.5,
+  });
 
   @override
   State<WatermarkOverlay> createState() => _WatermarkOverlayState();
@@ -49,7 +56,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
               top: _topPct * constraints.maxHeight,
               left: _leftPct * constraints.maxWidth,
               child: Opacity(
-                opacity: 0.5,
+                opacity: widget.overlayOpacity,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -64,7 +71,7 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                     widget.text,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white24,
+                      color: widget.textColor,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       decoration: TextDecoration.none,
