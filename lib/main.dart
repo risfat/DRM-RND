@@ -68,7 +68,7 @@ class HomeScreen extends StatelessWidget {
                 builder: (context) => const DrmDocumentScreen(
                   title: 'Secure Document',
                   url:
-                      'https://github.com/risfat/DRM-RND/blob/dev/doc/flutter-succinctly_protected.pdf?raw=true',
+                      'https://github.com/risfat/DRM-RND/blob/dev/doc/sample_protected.pdf?raw=true',
                   password: 'password',
                   userIdentifier: 'user_123@ait.inc',
                 ),
