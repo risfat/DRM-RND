@@ -39,7 +39,7 @@ class HomeScreen extends StatelessWidget {
           _buildCard(
             context,
             title: 'Video DRM',
-            subtitle: 'Secure VdoCipher Playback',
+            subtitle: 'Secure Video Playback',
             icon: Icons.video_library,
             onTap: () => Navigator.push(
               context,
