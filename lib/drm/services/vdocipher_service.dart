@@ -12,7 +12,7 @@ class VdoCipherService implements DrmService {
   VdoCipherService({required this.otpEndpoint, this.apiKey});
 
   @override
-  bool get isPlatformSupported => Platform.isAndroid;
+  bool get isPlatformSupported => Platform.isAndroid || Platform.isIOS;
 
   @override
   Future<DrmAuth> fetchAuth({

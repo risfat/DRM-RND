@@ -49,23 +49,27 @@ dependencies:
 import 'package:your_app/drm/drm_module.dart';
 
 MaterialApp(
-  home: DrmPlayerScreen(
-    videos: [
-      VideoItem(
-        title: 'My Protected Video',
-        thumbnailUrl: '...',
-        durationLabel: 'DRM',
-        drmType: DrmType.vdocipher,
-        videoId: 'YOUR_VDOCIPHER_VIDEO_ID',
-      ),
-    ],
-    otpEndpoint: 'https://your-backend.com/vdocipher/otp',
-    apiKey: 'optional-api-key',
+  home: DrmPlayerScreen(...),
+);
+```
+
+### 4) Using Document DRM (PDF)
+```dart
+import 'package:your_app/drm/drm_module.dart';
+
+Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => DocumentDrmScreen(
+      title: 'Protected PDF',
+      url: 'https://example.com/protected.pdf',
+      userIdentifier: 'user@example.com', // Displayed as moving watermark
+    ),
   ),
 );
 ```
 
-### 4) Run with endpoint
+### 5) Run with endpoint
 ```bash
 flutter run --dart-define=VDOCIPHER_OTP_ENDPOINT=https://your-backend.com/vdocipher/otp
 ```

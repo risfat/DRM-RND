@@ -3,7 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class WatermarkOverlay extends StatefulWidget {
-  const WatermarkOverlay({super.key});
+  final String text;
+  const WatermarkOverlay({super.key, this.text = 'AIT DRM'});
 
   @override
   State<WatermarkOverlay> createState() => _WatermarkOverlayState();
@@ -59,8 +60,8 @@ class _WatermarkOverlayState extends State<WatermarkOverlay> {
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(color: Colors.white12),
                   ),
-                  child: const Text(
-                    'AIT',
+                  child: Text(
+                    widget.text,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white24,

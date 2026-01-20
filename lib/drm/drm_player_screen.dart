@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:safe_device/safe_device.dart';
@@ -114,14 +113,14 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
       });
     } catch (e) {
       // Log error but don't fail the entire initialization
-      print('Screen protection initialization failed: $e');
+      debugPrint('Screen protection initialization failed: $e');
     }
   }
 
   void _handleScreenshotDetected() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Screenshot detected! Playback paused.'),
+        content: Text('Screenshot detected!'),
         backgroundColor: Colors.red,
       ),
     );
@@ -130,7 +129,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   void _showRecordingWarning() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Screen recording detected! Playback paused.'),
+        content: Text('Screen recording detected!'),
         backgroundColor: Colors.orange,
       ),
     );
@@ -212,7 +211,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
               child: _isSafeStatus
                   ? ListenableBuilder(
                       listenable: _provider,
-                      builder: (_, __) {
+                      builder: (_, _) {
                         switch (_provider.state) {
                           case DrmPlayerState.loading:
                             return const Center(
@@ -244,6 +243,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                                       otp: auth.otp,
                                       playbackInfo: auth.playbackInfo,
                                       embedInfoOptions: const EmbedInfoOptions(
+                                        customPlayerId: "G6PJBZ1OIQypBmWt",
                                         autoplay: true,
                                       ),
                                     ),
