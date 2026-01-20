@@ -1,23 +1,22 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:safe_device/safe_device.dart';
-import 'package:screen_protector/screen_protector.dart';
 import 'package:vdocipher_flutter/vdocipher_flutter.dart';
+import 'drm.dart';
 import 'models/video_item.dart';
 import 'providers/drm_player_provider.dart';
 import 'services/vdocipher_service.dart';
+import 'services/drm_security_service.dart';
 import 'widgets/watermark_overlay.dart';
 
 class DrmPlayerScreen extends StatefulWidget {
   final List<VideoItem> videos;
-  final String otpEndpoint;
+  final String? otpEndpoint;
   final String? apiKey;
 
   const DrmPlayerScreen({
     super.key,
     required this.videos,
-    required this.otpEndpoint,
+    this.otpEndpoint,
     this.apiKey,
   });
 
@@ -32,15 +31,17 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   bool _isSafeStatus = true;
 
   late final DrmPlayerProvider _provider;
+  final _security = DrmSecurityService();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
     _provider = DrmPlayerProvider(
       drmService: VdoCipherService(
-        otpEndpoint: widget.otpEndpoint,
-        apiKey: widget.apiKey,
+        otpEndpoint: widget.otpEndpoint ?? Drm.config.otpEndpoint,
+        apiKey: widget.apiKey ?? Drm.config.apiKey,
       ),
     );
     _runInitializationSequence();
@@ -48,17 +49,31 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
 
   Future<void> _runInitializationSequence() async {
     try {
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-      ]);
-      final isSafe = await _checkDeviceSafety();
+      await _security.setSecureOrientation();
+
+      final isSafe = await _security.checkDeviceSafety();
       if (!mounted) return;
+
       setState(() {
         _isSafeStatus = isSafe;
       });
+
       if (isSafe) {
-        await _initializeScreenProtection();
+        await _security.initializeScreenProtection(
+          onScreenshotDetected: _handleScreenshotDetected,
+          onScreenRecordingStatusChanged: (isCapturing) {
+            if (isCapturing) {
+              _vdoPlayerController?.pause();
+              _showRecordingWarning();
+            }
+          },
+        );
         await _loadCurrentVideo();
+      } else {
+        _security.showCriticalError(
+          context,
+          'Security check failed. Rooted devices or emulators are not allowed for this secure content.',
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -69,25 +84,11 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
     }
   }
 
-  Future<bool> _checkDeviceSafety() async {
-    final isJailBroken = await SafeDevice.isJailBroken;
-    final isRealDevice = await SafeDevice.isRealDevice;
-    if (isJailBroken || !isRealDevice) {
-      if (!mounted) return false;
-      final message = isJailBroken
-          ? 'This device is jailbroken/rooted. Playback is blocked.'
-          : 'Emulators are not allowed for DRM content.';
-      _showErrorDialog(message);
-      return false;
-    }
-    return true;
-  }
-
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Security Check Failed'),
+        title: const Text('Security Check'),
         content: Text(message),
         actions: [
           TextButton(
@@ -99,46 +100,20 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
     );
   }
 
-  Future<void> _initializeScreenProtection() async {
-    try {
-      await ScreenProtector.preventScreenshotOn();
-      await ScreenProtector.protectDataLeakageWithBlur();
-      ScreenProtector.addListener(() => _handleScreenshotDetected(), (
-        isCapturing,
-      ) {
-        if (isCapturing) {
-          _vdoPlayerController?.pause();
-          _showRecordingWarning();
-        }
-      });
-    } catch (e) {
-      // Log error but don't fail the entire initialization
-      debugPrint('Screen protection initialization failed: $e');
-    }
-  }
-
   void _handleScreenshotDetected() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Screenshot detected!'),
-        backgroundColor: Colors.red,
-      ),
+    _security.showViolationDialog(
+      context,
+      message:
+          'Screenshots are strictly prohibited for this content to protect digital rights.',
     );
   }
 
   void _showRecordingWarning() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Screen recording detected!'),
-        backgroundColor: Colors.orange,
-      ),
+    _security.showViolationDialog(
+      context,
+      message:
+          'Screen recording detected. Playback has been paused to protect content.',
     );
-  }
-
-  Future<void> _disableScreenProtection() async {
-    await ScreenProtector.preventScreenshotOff();
-    await ScreenProtector.protectDataLeakageOff();
-    ScreenProtector.removeListener();
   }
 
   Future<void> _loadCurrentVideo() async {
@@ -166,24 +141,15 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      ScreenProtector.preventScreenshotOn();
-      ScreenProtector.protectDataLeakageWithBlur();
-    } else if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused) {
-      // _vdoPlayerController?.pause();
+      _security.initializeScreenProtection();
     }
   }
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
     WidgetsBinding.instance.removeObserver(this);
-    _disableScreenProtection();
+    _security.resetOrientation();
+    _security.disableScreenProtection();
     _vdoPlayerController?.dispose();
     _provider.dispose();
     super.dispose();

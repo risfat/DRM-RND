@@ -3,6 +3,18 @@ import 'data/videos.dart';
 import 'drm/drm_module.dart';
 
 void main() {
+  // Initialize DRM Module
+  Drm.init(
+    config: const DrmConfig(
+      otpEndpoint: String.fromEnvironment(
+        'VDOCIPHER_OTP_ENDPOINT',
+        defaultValue: 'https://drm-backend-psi.vercel.app/vdocipher/otp',
+      ),
+      apiKey: String.fromEnvironment('BACKEND_API_KEY'),
+      defaultUserIdentifier: 'user_123@ait.inc',
+    ),
+  );
+
   runApp(const MyApp());
 }
 
@@ -41,20 +53,7 @@ class HomeScreen extends StatelessWidget {
             title: 'Video DRM',
             subtitle: 'Secure Video Playback',
             icon: Icons.video_library,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DrmPlayerScreen(
-                  videos: videos,
-                  otpEndpoint: const String.fromEnvironment(
-                    'VDOCIPHER_OTP_ENDPOINT',
-                    defaultValue:
-                        'https://drm-backend-psi.vercel.app/vdocipher/otp',
-                  ),
-                  apiKey: const String.fromEnvironment('BACKEND_API_KEY'),
-                ),
-              ),
-            ),
+            onTap: () => Drm.openPlayer(context, videos: videos),
           ),
           const SizedBox(height: 16),
           _buildCard(
@@ -62,17 +61,12 @@ class HomeScreen extends StatelessWidget {
             title: 'Document DRM',
             subtitle: 'Secure PDF Viewer (No Copy/Download)',
             icon: Icons.picture_as_pdf,
-            onTap: () => Navigator.push(
+            onTap: () => Drm.openDocument(
               context,
-              MaterialPageRoute(
-                builder: (context) => const DrmDocumentScreen(
-                  title: 'Secure Document',
-                  url:
-                      'https://github.com/risfat/DRM-RND/blob/dev/doc/sample_protected.pdf?raw=true',
-                  password: 'password',
-                  userIdentifier: 'user_123@ait.inc',
-                ),
-              ),
+              title: 'Secure Document',
+              url:
+                  'https://github.com/risfat/DRM-RND/blob/dev/doc/sample_protected.pdf?raw=true',
+              password: 'password',
             ),
           ),
         ],
