@@ -7,3 +7,4 @@ export 'services/vdocipher_service.dart';
 export 'providers/drm_player_provider.dart';
 export 'widgets/watermark_overlay.dart';
 export 'drm_player_screen.dart';
+export 'drm_document_screen.dart';
