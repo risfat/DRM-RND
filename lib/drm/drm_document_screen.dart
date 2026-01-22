@@ -149,7 +149,12 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
         DrmErrorDialog.show(
           context,
           error: error,
-          onDismiss: () => Navigator.of(context).pop(),
+          onDismiss: () {
+            Navigator.of(context).pop();
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
         );
       });
       return const Scaffold(backgroundColor: Colors.black);
