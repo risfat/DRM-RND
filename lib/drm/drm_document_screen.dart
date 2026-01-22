@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'models/drm_error.dart';
 import 'services/drm_security_service.dart';
 import 'widgets/watermark_overlay.dart';
+import 'widgets/drm_error_widget.dart';
+import 'services/network_service.dart';
 
 /// A secure PDF viewer screen that prevents:
 /// 1. Screenshots and screen recording.
@@ -29,6 +32,8 @@ class DrmDocumentScreen extends StatefulWidget {
 class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
   final GlobalKey<SfPdfViewerState> _pdfViewerKey = GlobalKey();
   bool _isDeviceSafe = true;
+  bool _isLoading = false;
+  DrmError? _drmError;
   final _security = DrmSecurityService();
 
   @override
@@ -38,30 +43,67 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
   }
 
   Future<void> _initSecureMode() async {
-    await _security.initializeScreenProtection(
-      onScreenshotDetected: _handleScreenshotDetected,
-      onScreenRecordingStatusChanged: (isCapturing) {
-        if (isCapturing) _showRecordingWarning();
-      },
-    );
-    final isSafe = await _security.checkDeviceSafety();
-    if (mounted) {
-      setState(() => _isDeviceSafe = isSafe);
+    try {
+      // Check internet connectivity first
+      final hasConnection = await NetworkService.hasInternetConnection(
+        useCache: false,
+      );
+      if (!hasConnection) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _drmError = DrmError.network(
+              message:
+                  'No internet connection. Please check your network settings and try again.',
+            );
+          });
+        }
+        return;
+      }
+
+      setState(() => _isLoading = true);
+      _drmError = null;
+
+      await _security.initializeScreenProtection(
+        onScreenshotDetected: _handleScreenshotDetected,
+        onScreenRecordingStatusChanged: (isCapturing) {
+          if (isCapturing) _showRecordingWarning();
+        },
+      );
+
+      final isSafe = await _security.checkDeviceSafety();
+      if (mounted) {
+        setState(() => _isDeviceSafe = isSafe);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _drmError = DrmError.unknown(
+            message: 'Failed to initialize secure document viewer.',
+            technicalDetails: e.toString(),
+          );
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   void _handleScreenshotDetected() {
-    _security.showViolationDialog(
-      context,
+    final error = DrmError.security(
       message: 'Screenshots are prohibited to protect document privacy.',
     );
+    DrmErrorDialog.show(context, error: error, onDismiss: () {});
   }
 
   void _showRecordingWarning() {
-    _security.showViolationDialog(
-      context,
+    final error = DrmError.security(
       message: 'Screen recording detected. Secure content hidden.',
     );
+    DrmErrorDialog.show(context, error: error, onDismiss: () {});
   }
 
   @override
@@ -72,12 +114,42 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_drmError != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black87,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text('Error'),
+          actions: const [],
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: DrmErrorWidget(
+              error: _drmError!,
+              onRetry: _drmError!.isRetryable ? _retryInitialization : null,
+            ),
+          ),
+        ),
+      );
+    }
+
     if (!_isDeviceSafe) {
       // Trigger critical error dialog after build
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _security.showCriticalError(
+        final error = DrmError.security(
+          message:
+              'This content cannot be viewed on a compromised or emulated device.',
+        );
+        DrmErrorDialog.show(
           context,
-          'This content cannot be viewed on a compromised or emulated device.',
+          error: error,
+          onDismiss: () => Navigator.of(context).pop(),
         );
       });
       return const Scaffold(backgroundColor: Colors.black);
@@ -88,11 +160,22 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
         title: Text(widget.title),
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
-        // Remove the action buttons to ensure no "Download" or "Share" option is available
+        // Remove action buttons to ensure no "Download" or "Share" option is available
         actions: const [],
       ),
       body: Stack(
         children: [
+          // Loading indicator
+          if (_isLoading)
+            Container(
+              color: Colors.black.withValues(alpha: 0.8),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            ),
+
           // The PDF Viewer
           SfPdfViewer.network(
             widget.url,
@@ -105,13 +188,12 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
             canShowScrollStatus: false,
             onDocumentLoadFailed: (details) {
               setState(() {
-                _isDeviceSafe = false; // Using this state to show error UI
+                _isLoading = false;
+                _drmError = DrmError.server(
+                  message: 'Failed to load document: ${details.description}',
+                  technicalDetails: details.description,
+                );
               });
-              _security.showViolationDialog(
-                context,
-                title: 'Loading Failed',
-                message: 'Failed to load document: ${details.description}',
-              );
             },
           ),
 
@@ -128,5 +210,9 @@ class _DrmDocumentScreenState extends State<DrmDocumentScreen> {
         ],
       ),
     );
+  }
+
+  void _retryInitialization() {
+    _initSecureMode();
   }
 }

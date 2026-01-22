@@ -2,11 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:vdocipher_flutter/vdocipher_flutter.dart';
 import 'drm.dart';
-import 'models/video_item.dart';
+import 'models/drm_error.dart';
 import 'providers/drm_player_provider.dart';
 import 'services/vdocipher_service.dart';
 import 'services/drm_security_service.dart';
 import 'widgets/watermark_overlay.dart';
+import 'widgets/drm_error_widget.dart';
 
 class DrmPlayerScreen extends StatefulWidget {
   final List<VideoItem> videos;
@@ -70,50 +71,55 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
         );
         await _loadCurrentVideo();
       } else {
-        _security.showCriticalError(
-          context,
-          'Security check failed. Rooted devices or emulators are not allowed for this secure content.',
-        );
+        _showSecurityError();
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isSafeStatus = false;
       });
-      _showErrorDialog('Initialization failed: ${e.toString()}');
+      _showInitializationError(e);
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Security Check'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+  void _showSecurityError() {
+    final error = DrmError.security(
+      message:
+          'Security check failed. Rooted devices or emulators are not allowed for this secure content.',
+    );
+    DrmErrorDialog.show(
+      context,
+      error: error,
+      onDismiss: () => Navigator.of(context).pop(),
+    );
+  }
+
+  void _showInitializationError(dynamic error) {
+    final drmError = DrmError.unknown(
+      message: 'Failed to initialize the DRM player.',
+      technicalDetails: error.toString(),
+    );
+    DrmErrorDialog.show(
+      context,
+      error: drmError,
+      onRetry: _runInitializationSequence,
     );
   }
 
   void _handleScreenshotDetected() {
-    _security.showViolationDialog(
-      context,
+    final error = DrmError.security(
       message:
           'Screenshots are strictly prohibited for this content to protect digital rights.',
     );
+    DrmErrorDialog.show(context, error: error, onDismiss: () {});
   }
 
   void _showRecordingWarning() {
-    _security.showViolationDialog(
-      context,
+    final error = DrmError.security(
       message:
           'Screen recording detected. Playback has been paused to protect content.',
     );
+    DrmErrorDialog.show(context, error: error, onDismiss: () {});
   }
 
   Future<void> _loadCurrentVideo() async {
@@ -123,7 +129,7 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
       await _provider.loadVideo(video);
     } catch (e) {
       if (!mounted) return;
-      _showErrorDialog('Failed to load video: ${e.toString()}');
+      // Error is handled by the provider, no need to show dialog here
     }
   }
 
@@ -184,13 +190,26 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                               child: CircularProgressIndicator(),
                             );
                           case DrmPlayerState.error:
-                            return Center(
-                              child: Text(
-                                _provider.errorMessage ?? 'Unknown error',
-                                style: const TextStyle(color: Colors.white),
-                                textAlign: TextAlign.center,
-                              ),
-                            );
+                            final drmError = _provider.drmError;
+                            if (drmError != null) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: DrmErrorWidget(
+                                  error: drmError,
+                                  onRetry: drmError.isRetryable
+                                      ? () => _provider.retryLoadVideo()
+                                      : null,
+                                ),
+                              );
+                            } else {
+                              return Center(
+                                child: Text(
+                                  _provider.errorMessage ?? 'Unknown error',
+                                  style: const TextStyle(color: Colors.white),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            }
                           case DrmPlayerState.ready:
                             final auth = _provider.auth;
                             if (auth == null) {
@@ -221,10 +240,14 @@ class _DrmPlayerScreenState extends State<DrmPlayerScreen>
                                     onFullscreenChange: (_) {},
                                     onError: (vdoError) {
                                       if (!mounted) return;
-                                      // Access provider via widget's property
+                                      final error = DrmError.unknown(
+                                        message:
+                                            'Video playback error occurred.',
+                                        technicalDetails: vdoError.toString(),
+                                      );
                                       _provider.setError(
                                         DrmPlayerState.error,
-                                        vdoError.toString(),
+                                        error.message,
                                       );
                                     },
                                   ),
